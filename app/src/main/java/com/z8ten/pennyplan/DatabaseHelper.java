@@ -8,8 +8,11 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "PennyPlan.db";
@@ -59,7 +62,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             values.put(COLUMN_AMOUNT, transaction.getAmount());
             values.put(COLUMN_TYPE, transaction.getType());
             values.put(COLUMN_NOTE, transaction.getNote());
-            values.put(COLUMN_DATE, transaction.getDate());
+
+            // Convert date to "YYYY-MM-DD" format before inserting
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            String formattedDate = sdf.format(new Date());
+            values.put(COLUMN_DATE, formattedDate);
 
             id = db.insert(TABLE_TRANSACTIONS, null, values);
 
@@ -165,6 +172,32 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
 
         return totalSavings - totalExpenses; // Balance = Savings - Expenses
+    }
+
+    // Get Transactions for a Specific Month & Year
+    public List<Transaction> getTransactionsForMonth(int month, int year) {
+        List<Transaction> transactions = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        String query = "SELECT * FROM transactions WHERE strftime('%m', date) = ? AND strftime('%Y', date) = ? ORDER BY date DESC";
+        Cursor cursor = db.rawQuery(query, new String[]{String.format("%02d", month), String.valueOf(year)});
+
+        if (cursor.moveToFirst()) {
+            do {
+                Transaction transaction = new Transaction(
+                        cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                        cursor.getDouble(cursor.getColumnIndexOrThrow("amount")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("type")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("note")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("date"))
+                );
+                transactions.add(transaction);
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return transactions;
     }
 
 }

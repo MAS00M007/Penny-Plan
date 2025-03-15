@@ -1,11 +1,13 @@
 package com.z8ten.pennyplan;
 
 import android.app.Dialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
@@ -20,6 +22,8 @@ public class MainActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private List<Transaction> transactionList;
     private Button btnAddSaving, btnAddExpense;
+
+    public ImageView downloadActivity;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -41,6 +45,14 @@ public class MainActivity extends AppCompatActivity {
         btnAddSaving = findViewById(R.id.btnAddSaving);
         btnAddExpense = findViewById(R.id.btnAddExpense);
 
+        downloadActivity=findViewById(R.id.downloadActivity);
+
+        downloadActivity.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+startActivity(new Intent(MainActivity.this, DownloadReportActivity.class));
+            }
+        });
         // Add Saving Button Click
         btnAddSaving.setOnClickListener(v -> showTransactionDialog("Saving"));
 
