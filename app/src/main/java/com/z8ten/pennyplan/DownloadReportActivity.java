@@ -1,12 +1,16 @@
 package com.z8ten.pennyplan;
 
 import android.app.DatePickerDialog;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -14,19 +18,19 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Calendar;
 import java.util.List;
-import android.Manifest;
 
 public class DownloadReportActivity extends AppCompatActivity {
     private TextView tvSelectedMonth;
     private Button btnSelectMonth, btnGeneratePDF;
     private DatabaseHelper dbHelper;
     private int selectedYear, selectedMonth;
-    private static final int STORAGE_PERMISSION_CODE = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,14 +44,7 @@ public class DownloadReportActivity extends AppCompatActivity {
 
         btnSelectMonth.setOnClickListener(v -> showMonthPickerDialog());
 
-
-        btnGeneratePDF.setOnClickListener(v -> {
-            if (checkStoragePermission()) {
-                generatePDF();
-            } else {
-                requestStoragePermission();
-            }
-        });
+        btnGeneratePDF.setOnClickListener(v -> generatePDF());
     }
 
     private void showMonthPickerDialog() {
@@ -57,7 +54,7 @@ public class DownloadReportActivity extends AppCompatActivity {
 
         DatePickerDialog datePickerDialog = new DatePickerDialog(this, (view, yearSelected, monthOfYear, dayOfMonth) -> {
             selectedYear = yearSelected;
-            selectedMonth = monthOfYear + 1; // Months are 0-based
+            selectedMonth = monthOfYear + 1;
             tvSelectedMonth.setText("Selected Month: " + selectedMonth + "/" + selectedYear);
         }, year, month, 1);
         datePickerDialog.show();
@@ -122,48 +119,57 @@ public class DownloadReportActivity extends AppCompatActivity {
 
         pdfDocument.finishPage(page);
 
-        // Save PDF
-        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "PennyPlanReports");
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
-
-        File file = new File(directory, "Report_" + selectedMonth + "_" + selectedYear + ".pdf");
-        try {
-            FileOutputStream fos = new FileOutputStream(file);
-            pdfDocument.writeTo(fos);
-            pdfDocument.close();
-            fos.close();
-            Toast.makeText(this, "PDF saved to Documents/PennyPlanReports", Toast.LENGTH_LONG).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Failed to save PDF", Toast.LENGTH_SHORT).show();
-        }
+        // Save PDF using MediaStore API
+        savePDF(pdfDocument);
     }
 
+    private void savePDF(PdfDocument pdfDocument) {
+        String fileName = "Report_" + selectedMonth + "_" + selectedYear + ".pdf";
+        OutputStream outputStream = null;
 
-    private boolean checkStoragePermission() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
-    }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Scoped Storage (Android 10+)
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+            values.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + "/PennyPlanReports");
 
-    // Request permission
-    private void requestStoragePermission() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            Toast.makeText(this, "Storage permission is required to save the PDF.", Toast.LENGTH_LONG).show();
+            Uri uri = getContentResolver().insert(MediaStore.Files.getContentUri("external"), values);
+            if (uri != null) {
+                try {
+                    outputStream = getContentResolver().openOutputStream(uri);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Toast.makeText(this, "Failed to save PDF", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+        } else {
+            // Legacy storage (Android 9 and below)
+            File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "PennyPlanReports");
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+            File file = new File(directory, fileName);
+            try {
+                outputStream = new FileOutputStream(file);
+            } catch (IOException e) {
+                e.printStackTrace();
+                Toast.makeText(this, "Failed to save PDF", Toast.LENGTH_SHORT).show();
+                return;
+            }
         }
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
-    }
 
-    // Handle the permission result
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == STORAGE_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                generatePDF();
-            } else {
-                Toast.makeText(this, "Storage permission denied! Cannot save PDF.", Toast.LENGTH_SHORT).show();
+        if (outputStream != null) {
+            try {
+                pdfDocument.writeTo(outputStream);
+                pdfDocument.close();
+                outputStream.close();
+                Toast.makeText(this, "PDF saved successfully!", Toast.LENGTH_LONG).show();
+            } catch (IOException e) {
+                e.printStackTrace();
+                Toast.makeText(this, "Error saving PDF", Toast.LENGTH_SHORT).show();
             }
         }
     }
-    }
+}

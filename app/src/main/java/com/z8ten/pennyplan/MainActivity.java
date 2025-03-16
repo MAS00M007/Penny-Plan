@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
         btnAddSaving = findViewById(R.id.btnAddSaving);
         btnAddExpense = findViewById(R.id.btnAddExpense);
 
-        downloadActivity=findViewById(R.id.downloadActivity);
+        downloadActivity=findViewById(R.id.downloadActivityButton);
 
         downloadActivity.setOnClickListener(new View.OnClickListener() {
             @Override

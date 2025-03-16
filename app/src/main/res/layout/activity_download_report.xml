@@ -1,40 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="24dp"
     android:gravity="center">
+
+    <ImageView
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:src="@drawable/ic_calendar"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="Calendar icon"/>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Select Month for Report"
-        android:textSize="18sp"
+        android:textSize="22sp"
         android:textStyle="bold"
-        android:layout_gravity="center_horizontal"/>
+        android:textColor="@color/primary_color"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"/>
 
-    <Button
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        android:layout_marginBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Current Selection"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tvSelectedMonth"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No month selected"
+                android:textSize="18sp"
+                android:textColor="@color/accent_color"
+                android:gravity="center"
+                android:padding="12dp"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSelectMonth"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Month"
-        android:layout_marginTop="12dp"/>
+        android:text="Choose Month"
+        android:textAllCaps="false"
+        android:paddingVertical="12dp"
+        app:cornerRadius="8dp"
+        app:icon="@drawable/ic_calendar_month"
+        app:iconGravity="textStart"
+        android:layout_marginBottom="16dp"/>
 
-    <TextView
-        android:id="@+id/tvSelectedMonth"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="No month selected"
-        android:textSize="16sp"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="8dp"/>
-
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnGeneratePDF"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Generate PDF"
-        android:layout_marginTop="16dp"/>
+        android:text="Generate PDF Report"
+        android:textAllCaps="false"
+        android:paddingVertical="12dp"
+        app:cornerRadius="8dp"
+        app:icon="@drawable/ic_pdf"
+        app:iconGravity="textStart"
+        android:backgroundTint="@color/accent_color"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Reports will be saved in your Documents folder"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:layout_marginTop="12dp"/>
 </LinearLayout>
