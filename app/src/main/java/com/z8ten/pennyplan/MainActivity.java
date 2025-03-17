@@ -14,6 +14,9 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -30,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+
         // Initialize Database
         dbHelper = new DatabaseHelper(this);
 
@@ -38,8 +42,9 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         // Fetch Transactions and Set Adapter
+
         loadTransactions();
-        updateBalance();
+updateBalance();
 
         // Buttons
         btnAddSaving = findViewById(R.id.btnAddSaving);
@@ -96,7 +101,7 @@ startActivity(new Intent(MainActivity.this, DownloadReportActivity.class));
                 return;
             }
 
-            double amount = Double.parseDouble(amountStr);
+            BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(amountStr));
             String date = java.text.DateFormat.getDateInstance().format(new java.util.Date());
 
             // Save to database
@@ -119,10 +124,14 @@ startActivity(new Intent(MainActivity.this, DownloadReportActivity.class));
         dialog.show();
     }
 
+
     public void updateBalance() {
         double balance = dbHelper.getBalance();
         TextView tvBalance = findViewById(R.id.tvBalance);
-        tvBalance.setText("Balance: ₹" + balance);
+
+        runOnUiThread(() -> tvBalance.setText("Balance:" + String.format("%,.2f", balance)));
     }
+
+
 
 }

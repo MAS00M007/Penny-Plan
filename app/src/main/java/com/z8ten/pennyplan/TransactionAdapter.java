@@ -2,6 +2,7 @@ package com.z8ten.pennyplan;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +11,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.util.List;
 
 public class TransactionAdapter extends RecyclerView.Adapter<TransactionAdapter.TransactionViewHolder> {
@@ -30,13 +34,28 @@ public class TransactionAdapter extends RecyclerView.Adapter<TransactionAdapter.
         return new TransactionViewHolder(view);
     }
 
+
     @Override
     public void onBindViewHolder(@NonNull TransactionViewHolder holder, int position) {
         Transaction transaction = transactionList.get(position);
-        holder.amountTextView.setText("₹" + transaction.getAmount());
+
+        // Ensure amount is correctly formatted
+        BigDecimal amount = new BigDecimal(String.valueOf(transaction.getAmount())); // Convert safely
+        String formattedAmount = new DecimalFormat("#,##0.00").format(amount); // Format with commas & decimals
+
+        holder.amountTextView.setText("₹" + formattedAmount);
         holder.typeTextView.setText(transaction.getType());
         holder.noteTextView.setText(transaction.getNote());
         holder.dateTextView.setText(transaction.getDate());
+
+        // Change text color based on transaction type
+        if (transaction.getType().equalsIgnoreCase("Saving")) {
+            holder.amountTextView.setTextColor(holder.itemView.getContext().getResources().getColor(R.color.accent_color));
+        } else if (transaction.getType().equalsIgnoreCase("Expense")) {
+            holder.amountTextView.setTextColor(holder.itemView.getContext().getResources().getColor(R.color.expense_color));
+        } else {
+            holder.amountTextView.setTextColor(Color.BLACK); // Default color
+        }
 
         // Long Press Listener for Edit/Delete
         holder.itemView.setOnLongClickListener(v -> {
@@ -44,6 +63,7 @@ public class TransactionAdapter extends RecyclerView.Adapter<TransactionAdapter.
             return true;
         });
     }
+
 
     @Override
     public int getItemCount() {

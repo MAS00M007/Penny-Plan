@@ -5,7 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_color"
+    android:background="@color/appbgcolor"
     android:padding="16dp">
 
     <TextView
@@ -46,13 +46,18 @@
 
             <TextView
                 android:id="@+id/tvBalance"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="$0.00"
-                android:textColor="@color/accent_color"
-                android:textSize="32sp"
-                android:textStyle="bold"
-                android:layout_marginTop="8dp" />
+                android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:textColor="@color/accent_color"
+            android:text="0.0"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="15sp"
+            android:autoSizeMaxTextSize="20sp"
+            android:autoSizeStepGranularity="1sp"
+            android:layout_marginTop="8dp"/>
+
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

@@ -1,14 +1,16 @@
 package com.z8ten.pennyplan;
 
+import java.math.BigDecimal;
+
 public class Transaction {
     private int id;
-    private double amount;
+    private BigDecimal amount;
     private String type; // "Saving" or "Expense"
     private String note;
     private String date;
 
     // Constructor
-    public Transaction(int id, double amount, String type, String note, String date) {
+    public Transaction(int id, BigDecimal amount, String type, String note, String date) {
         this.id = id;
         this.amount = amount;
         this.type = type;
@@ -25,12 +27,12 @@ public class Transaction {
         this.id = id;
     }
 
-    public double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
     public void setAmount(double amount) {
-        this.amount = amount;
+        this.amount = BigDecimal.valueOf(amount);
     }
 
     public String getType() {

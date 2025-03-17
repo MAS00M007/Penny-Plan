@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -30,7 +31,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String CREATE_TABLE_TRANSACTIONS =
             "CREATE TABLE " + TABLE_TRANSACTIONS + " (" +
                     COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    COLUMN_AMOUNT + " REAL, " +
+                    COLUMN_AMOUNT + " TEXT, " +
                     COLUMN_TYPE + " TEXT, " +
                     COLUMN_NOTE + " TEXT, " +
                     COLUMN_DATE + " TEXT)";
@@ -59,7 +60,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         try {
             ContentValues values = new ContentValues();
-            values.put(COLUMN_AMOUNT, transaction.getAmount());
+            values.put(COLUMN_AMOUNT, transaction.getAmount().toPlainString());
             values.put(COLUMN_TYPE, transaction.getType());
             values.put(COLUMN_NOTE, transaction.getNote());
 
@@ -91,12 +92,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Cursor cursor = null;
 
         try {
-            cursor = db.rawQuery("SELECT * FROM " + TABLE_TRANSACTIONS + " ORDER BY date DESC ", null);
+            cursor = db.rawQuery("SELECT * FROM " + TABLE_TRANSACTIONS + " ORDER BY id DESC ", null);
             if (cursor.moveToFirst()) {
                 do {
                     Transaction transaction = new Transaction(
                             cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)),
-                            cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_AMOUNT)),
+                           new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_AMOUNT))),
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)),
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE)),
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE))
@@ -121,7 +122,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         try {
             ContentValues values = new ContentValues();
-            values.put(COLUMN_AMOUNT, transaction.getAmount());
+            values.put(COLUMN_AMOUNT, transaction.getAmount().toPlainString());
             values.put(COLUMN_TYPE, transaction.getType());
             values.put(COLUMN_NOTE, transaction.getNote());
             values.put(COLUMN_DATE, transaction.getDate());
@@ -154,22 +155,44 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
+//    public double getBalance() {
+//        SQLiteDatabase db = this.getReadableDatabase();
+//        double totalSavings = 0, totalExpenses = 0;
+//
+//        Cursor cursor = db.rawQuery("SELECT SUM(amount) FROM transactions WHERE type='Saving'", null);
+//        if (cursor.moveToFirst()) {
+//            totalSavings = cursor.getDouble(0);
+//        }
+//        cursor.close();
+//
+//        cursor = db.rawQuery("SELECT SUM(amount) FROM transactions WHERE type='Expense'", null);
+//        if (cursor.moveToFirst()) {
+//            totalExpenses = cursor.getDouble(0);
+//        }
+//        cursor.close();
+//        db.close();
+//
+//        return totalSavings - totalExpenses; // Balance = Savings - Expenses
+//    }
+
+
     public double getBalance() {
         SQLiteDatabase db = this.getReadableDatabase();
         double totalSavings = 0, totalExpenses = 0;
 
-        Cursor cursor = db.rawQuery("SELECT SUM(amount) FROM transactions WHERE type='Saving'", null);
-        if (cursor.moveToFirst()) {
-            totalSavings = cursor.getDouble(0);
+        // Fetch total savings
+        Cursor cursorSavings = db.rawQuery("SELECT IFNULL(SUM(amount), 0) FROM transactions WHERE type='Saving'", null);
+        if (cursorSavings.moveToFirst()) {
+            totalSavings = cursorSavings.getDouble(0);
         }
-        cursor.close();
+        cursorSavings.close(); // Close the cursor after use
 
-        cursor = db.rawQuery("SELECT SUM(amount) FROM transactions WHERE type='Expense'", null);
-        if (cursor.moveToFirst()) {
-            totalExpenses = cursor.getDouble(0);
+        // Fetch total expenses
+        Cursor cursorExpenses = db.rawQuery("SELECT IFNULL(SUM(amount), 0) FROM transactions WHERE type='Expense'", null);
+        if (cursorExpenses.moveToFirst()) {
+            totalExpenses = cursorExpenses.getDouble(0);
         }
-        cursor.close();
-        db.close();
+        cursorExpenses.close(); // Close the cursor after use
 
         return totalSavings - totalExpenses; // Balance = Savings - Expenses
     }
@@ -186,7 +209,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             do {
                 Transaction transaction = new Transaction(
                         cursor.getInt(cursor.getColumnIndexOrThrow("id")),
-                        cursor.getDouble(cursor.getColumnIndexOrThrow("amount")),
+                    new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow("amount"))),
                         cursor.getString(cursor.getColumnIndexOrThrow("type")),
                         cursor.getString(cursor.getColumnIndexOrThrow("note")),
                         cursor.getString(cursor.getColumnIndexOrThrow("date"))
