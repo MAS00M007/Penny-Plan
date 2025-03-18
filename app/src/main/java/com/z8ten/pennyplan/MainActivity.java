@@ -3,6 +3,7 @@ package com.z8ten.pennyplan;
 import android.app.Dialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -15,8 +16,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdLoader;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
+
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -25,6 +33,9 @@ public class MainActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private List<Transaction> transactionList;
     private Button btnAddSaving, btnAddExpense;
+    List<Object> items = new ArrayList<>();
+
+
 
     public ImageView downloadActivity;
 
@@ -42,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         // Fetch Transactions and Set Adapter
+        MobileAds.initialize(this, initializationStatus -> {});
 
         loadTransactions();
 updateBalance();
@@ -67,9 +79,39 @@ startActivity(new Intent(MainActivity.this, DownloadReportActivity.class));
 
     // Load transactions from DB and update RecyclerView
     private void loadTransactions() {
-        transactionList = dbHelper.getAllTransactions();
-        adapter = new TransactionAdapter(this, transactionList, dbHelper);
+        List<Object> items = new ArrayList<>();
+        List<Transaction> transactions = dbHelper.getAllTransactions();
+
+        for (int i = 0; i < transactions.size(); i++) {
+            items.add(transactions.get(i));
+
+            // Insert an Ad every 5th transaction
+            if ((i + 1) % 5 == 0) {
+                loadNativeAd(items);
+            }
+        }
+
+        adapter = new TransactionAdapter(this, items, dbHelper);
         recyclerView.setAdapter(adapter);
+    }
+
+    private void loadNativeAd(List<Object> items) {
+        AdLoader adLoader = new AdLoader.Builder(this, "ca-app-pub-3940256099942544/2247696110")
+                .forNativeAd(nativeAd -> {
+                    items.add(nativeAd);
+                    if (adapter != null) {
+                        adapter.notifyItemInserted(items.size() - 1);
+                    }
+                })
+                .withAdListener(new AdListener() {
+                    @Override
+                    public void onAdFailedToLoad(LoadAdError adError) {
+                        Log.e("AdLoadError", "Failed to load native ad: " + adError.getMessage());
+                    }
+                })
+                .build();
+
+        adLoader.loadAd(new AdRequest.Builder().build());
     }
 
 
