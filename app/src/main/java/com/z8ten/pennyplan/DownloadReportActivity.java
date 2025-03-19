@@ -18,9 +18,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+
 import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.FullScreenContentCallback;
-import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd;
 import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback;
@@ -36,31 +36,31 @@ public class DownloadReportActivity extends AppCompatActivity {
     private TextView tvSelectedMonth;
     private Button btnSelectMonth, btnGeneratePDF;
     private DatabaseHelper dbHelper;
-    private int selectedYear, selectedMonth;
+    private int selectedYear = 0, selectedMonth = 0;
     private RewardedInterstitialAd rewardedInterstitialAd;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         setContentView(R.layout.activity_download_report);
 
+        // Initialize views
         tvSelectedMonth = findViewById(R.id.tvSelectedMonth);
         btnSelectMonth = findViewById(R.id.btnSelectMonth);
         btnGeneratePDF = findViewById(R.id.btnGeneratePDF);
         dbHelper = new DatabaseHelper(this);
 
-        // Initialize AdMob
+        // Initialize Ads
         MobileAds.initialize(this, initializationStatus -> {});
 
-        // Load Rewarded Interstitial Ad
-        btnGeneratePDF.setEnabled(false); // Disable button until ad is loaded
+        // Load Ad Immediately
         loadRewardedInterstitialAd();
 
         btnSelectMonth.setOnClickListener(v -> showMonthPickerDialog());
 
         btnGeneratePDF.setOnClickListener(v -> {
             if (!isOnline()) {
-                Toast.makeText(this, "No internet connection, generating PDF directly", Toast.LENGTH_SHORT).show();
                 generatePDF();
                 return;
             }
@@ -68,11 +68,12 @@ public class DownloadReportActivity extends AppCompatActivity {
             if (rewardedInterstitialAd != null) {
                 rewardedInterstitialAd.show(DownloadReportActivity.this, rewardItem -> {
                     generatePDF();
-                    loadRewardedInterstitialAd(); // Load a new ad for next time
+                    loadRewardedInterstitialAd(); // Reload for next use
                 });
             } else {
-                Toast.makeText(this, "Ad loading, please wait...", Toast.LENGTH_SHORT).show();
-                loadRewardedInterstitialAd(); // Try loading again
+                Toast.makeText(this, "Ad not ready, generating PDF anyway", Toast.LENGTH_SHORT).show();
+                generatePDF();
+                loadRewardedInterstitialAd(); // Try to load again for next use
             }
         });
     }
@@ -80,29 +81,29 @@ public class DownloadReportActivity extends AppCompatActivity {
     // Load Rewarded Interstitial Ad
     private void loadRewardedInterstitialAd() {
         if (!isOnline()) {
-            Toast.makeText(this, "No internet connection, ads will not load", Toast.LENGTH_SHORT).show();
-            btnGeneratePDF.setEnabled(true); // Enable button even without ads
+            btnGeneratePDF.setEnabled(true);
             return;
         }
 
-        Toast.makeText(this, "Loading ad, please wait...", Toast.LENGTH_SHORT).show();
-        AdRequest adRequest = new AdRequest.Builder().build();
+        try {
+            AdRequest adRequest = new AdRequest.Builder().build();
+            RewardedInterstitialAd.load(this, "ca-app-pub-3940256099942544/5354046379", adRequest,
+                    new RewardedInterstitialAdLoadCallback() {
+                        @Override
+                        public void onAdLoaded(@NonNull RewardedInterstitialAd ad) {
+                            rewardedInterstitialAd = ad;
+                            btnGeneratePDF.setEnabled(true);
+                        }
 
-        RewardedInterstitialAd.load(this, "ca-app-pub-3940256099942544/5354046379", adRequest,
-                new RewardedInterstitialAdLoadCallback() {
-                    @Override
-                    public void onAdLoaded(@NonNull RewardedInterstitialAd ad) {
-                        rewardedInterstitialAd = ad;
-                        btnGeneratePDF.setEnabled(true); // Enable button when ad is ready
-                    }
-
-                    @Override
-                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                        rewardedInterstitialAd = null;
-                        btnGeneratePDF.setEnabled(true); // Still allow PDF generation
-                        Toast.makeText(DownloadReportActivity.this, "Ad failed to load, generating PDF without ads", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                        @Override
+                        public void onAdFailedToLoad(@NonNull com.google.android.gms.ads.LoadAdError loadAdError) {
+                            rewardedInterstitialAd = null;
+                            btnGeneratePDF.setEnabled(true);
+                        }
+                    });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // Check if device is online
@@ -129,7 +130,7 @@ public class DownloadReportActivity extends AppCompatActivity {
     }
 
     private void generatePDF() {
-        if (selectedYear == 0 || selectedMonth == 0) {
+        if (selectedYear <= 0 || selectedMonth <= 0) {
             Toast.makeText(this, "Please select a month first", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -194,7 +195,7 @@ public class DownloadReportActivity extends AppCompatActivity {
             ContentValues values = new ContentValues();
             values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
             values.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
-            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + "/PennyPlanReports");
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS);
 
             Uri uri = getContentResolver().insert(MediaStore.Files.getContentUri("external"), values);
             if (uri != null) {
@@ -211,7 +212,7 @@ public class DownloadReportActivity extends AppCompatActivity {
             pdfDocument.writeTo(outputStream);
             pdfDocument.close();
             outputStream.close();
-            Toast.makeText(this, "PDF saved successfully!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "PDF saved successfully to Documents", Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             e.printStackTrace();
         }

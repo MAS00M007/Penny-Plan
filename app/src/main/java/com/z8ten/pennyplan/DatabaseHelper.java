@@ -72,12 +72,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             id = db.insert(TABLE_TRANSACTIONS, null, values);
 
             if (id == -1) {
-                Log.e("DB_ERROR", "Failed to insert transaction: " + values.toString());
+//                Log.e("DB_ERROR", "Failed to insert transaction: " + values.toString());
             } else {
-                Log.d("DB_SUCCESS", "Transaction added: " + values.toString());
+//                Log.d("DB_SUCCESS", "Transaction added: " + values.toString());
             }
         } catch (Exception e) {
-            Log.e("DB_ERROR", "Exception while inserting transaction", e);
+//            Log.e("DB_ERROR", "Exception while inserting transaction", e);
         } finally {
             db.close();
         }
@@ -106,7 +106,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
-            Log.e("DB_ERROR", "Error fetching transactions", e);
+//            Log.e("DB_ERROR", "Error fetching transactions", e);
         } finally {
             if (cursor != null) cursor.close();
             db.close();
@@ -129,7 +129,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
             rowsAffected = db.update(TABLE_TRANSACTIONS, values, COLUMN_ID + "=?", new String[]{String.valueOf(transaction.getId())});
         } catch (Exception e) {
-            Log.e("DB_ERROR", "Error updating transaction", e);
+//            Log.e("DB_ERROR", "Error updating transaction", e);
         } finally {
             db.close();
         }
@@ -144,12 +144,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             int rowsDeleted = db.delete(TABLE_TRANSACTIONS, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
             if (rowsDeleted == 0) {
-                Log.e("DB_ERROR", "No transaction deleted with ID: " + id);
+//                Log.e("DB_ERROR", "No transaction deleted with ID: " + id);
             } else {
-                Log.d("DB_SUCCESS", "Transaction deleted with ID: " + id);
+//                Log.d("DB_SUCCESS", "Transaction deleted with ID: " + id);
             }
         } catch (Exception e) {
-            Log.e("DB_ERROR", "Error deleting transaction", e);
+//            Log.e("DB_ERROR", "Error deleting transaction", e);
         } finally {
             db.close();
         }
