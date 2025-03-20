@@ -84,28 +84,25 @@ public class MainActivity extends AppCompatActivity {
 
     // Load transactions from DB in background thread
     private void loadDataInBackground() {
-        // Show loading indicator if needed
-
         executor.execute(() -> {
-            // Get transactions in background
             final List<Transaction> transactions = dbHelper.getAllTransactions();
             final double balance = dbHelper.getBalance();
 
-            // Update UI on main thread
             runOnUiThread(() -> {
-                // Update balance
-                tvBalance.setText("Balance:" + String.format("%,.2f", balance));
+                tvBalance.setText("Balance: " + String.format("%,.2f", balance));
 
-                // Update transaction list
                 items.clear();
                 items.addAll(transactions);
-                adapter.notifyDataSetChanged();
 
-                // Load ad after showing content for better user experience
-                loadNativeAd();
+                if (items.isEmpty()) {
+                    Toast.makeText(this, "No transactions available", Toast.LENGTH_SHORT).show();
+                }
+
+                adapter.notifyDataSetChanged();
             });
         });
     }
+
 
     private void loadNativeAd() {
         AdLoader adLoader = new AdLoader.Builder(this, "ca-app-pub-3940256099942544/2247696110")

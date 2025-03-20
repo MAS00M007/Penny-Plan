@@ -175,7 +175,13 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
                     dbHelper.deleteTransaction(transaction.getId());
                     items.remove(position);
                     notifyItemRemoved(position);
-                    Toast.makeText(context, "Transaction deleted!", Toast.LENGTH_SHORT).show();
+
+                    if (items.isEmpty()) {
+                        notifyDataSetChanged(); // Ensure RecyclerView updates if empty
+                        Toast.makeText(context, "No transactions available", Toast.LENGTH_SHORT).show();
+                    } else {
+                        notifyItemRangeChanged(position, items.size()); // Update remaining items
+                    }
 
                     if (context instanceof MainActivity) {
                         ((MainActivity) context).updateBalance();
@@ -184,6 +190,7 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
                 .setNegativeButton("No", null)
                 .show();
     }
+
 
     // Load Native Ad
     private void populateNativeAdView(NativeAd nativeAd, NativeAdView adView) {
