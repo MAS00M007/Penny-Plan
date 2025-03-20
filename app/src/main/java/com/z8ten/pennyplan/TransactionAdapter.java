@@ -63,7 +63,7 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             BigDecimal amount = new BigDecimal(String.valueOf(transaction.getAmount()));
             String formattedAmount = new DecimalFormat("#,##0.00").format(amount);
 
-            transactionHolder.amountTextView.setText("₹" + formattedAmount);
+            transactionHolder.amountTextView.setText("" + formattedAmount);
             transactionHolder.typeTextView.setText(transaction.getType());
             transactionHolder.noteTextView.setText(transaction.getNote());
             transactionHolder.dateTextView.setText(transaction.getDate());
@@ -145,7 +145,7 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             double newAmount = Double.parseDouble(etAmount.getText().toString());
             String newNote = etNote.getText().toString();
 
-            transaction.setAmount(newAmount);
+            transaction.setAmount(BigDecimal.valueOf(newAmount));
             transaction.setNote(newNote);
 
             int result = dbHelper.updateTransaction(transaction);

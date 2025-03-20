@@ -5,13 +5,21 @@ import java.math.BigDecimal;
 public class Transaction {
     private int id;
     private BigDecimal amount;
-    private String type; // "Saving" or "Expense"
+    private String type; // "Income" or "Expense"
     private String note;
     private String date;
 
-    // Constructor
+    // Constructor with ID
     public Transaction(int id, BigDecimal amount, String type, String note, String date) {
         this.id = id;
+        this.amount = amount;
+        this.type = type;
+        this.note = note;
+        this.date = date;
+    }
+
+    // Constructor without ID (for new transactions before inserting into DB)
+    public Transaction(BigDecimal amount, String type, String note, String date) {
         this.amount = amount;
         this.type = type;
         this.note = note;
@@ -31,8 +39,8 @@ public class Transaction {
         return amount;
     }
 
-    public void setAmount(double amount) {
-        this.amount = BigDecimal.valueOf(amount);
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
     }
 
     public String getType() {
@@ -40,7 +48,11 @@ public class Transaction {
     }
 
     public void setType(String type) {
-        this.type = type;
+        if (type.equalsIgnoreCase("income") || type.equalsIgnoreCase("expense")) {
+            this.type = type;
+        } else {
+            throw new IllegalArgumentException("Invalid transaction type. Use 'Income' or 'Expense'.");
+        }
     }
 
     public String getNote() {

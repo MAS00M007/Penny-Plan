@@ -25,10 +25,9 @@ import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd;
 import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.util.Calendar;
 import java.util.List;
 
@@ -45,16 +44,12 @@ public class DownloadReportActivity extends AppCompatActivity {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         setContentView(R.layout.activity_download_report);
 
-        // Initialize views
         tvSelectedMonth = findViewById(R.id.tvSelectedMonth);
         btnSelectMonth = findViewById(R.id.btnSelectMonth);
         btnGeneratePDF = findViewById(R.id.btnGeneratePDF);
         dbHelper = new DatabaseHelper(this);
 
-        // Initialize Ads
         MobileAds.initialize(this, initializationStatus -> {});
-
-        // Load Ad Immediately
         loadRewardedInterstitialAd();
 
         btnSelectMonth.setOnClickListener(v -> showMonthPickerDialog());
@@ -68,17 +63,16 @@ public class DownloadReportActivity extends AppCompatActivity {
             if (rewardedInterstitialAd != null) {
                 rewardedInterstitialAd.show(DownloadReportActivity.this, rewardItem -> {
                     generatePDF();
-                    loadRewardedInterstitialAd(); // Reload for next use
+                    loadRewardedInterstitialAd();
                 });
             } else {
                 Toast.makeText(this, "Ad not ready, generating PDF anyway", Toast.LENGTH_SHORT).show();
                 generatePDF();
-                loadRewardedInterstitialAd(); // Try to load again for next use
+                loadRewardedInterstitialAd();
             }
         });
     }
 
-    // Load Rewarded Interstitial Ad
     private void loadRewardedInterstitialAd() {
         if (!isOnline()) {
             btnGeneratePDF.setEnabled(true);
@@ -106,7 +100,6 @@ public class DownloadReportActivity extends AppCompatActivity {
         }
     }
 
-    // Check if device is online
     private boolean isOnline() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
@@ -128,7 +121,6 @@ public class DownloadReportActivity extends AppCompatActivity {
         }, year, month, 1);
         datePickerDialog.show();
     }
-
     private void generatePDF() {
         if (selectedYear <= 0 || selectedMonth <= 0) {
             Toast.makeText(this, "Please select a month first", Toast.LENGTH_SHORT).show();
@@ -141,12 +133,23 @@ public class DownloadReportActivity extends AppCompatActivity {
             return;
         }
 
+        BigDecimal totalExpense = BigDecimal.ZERO;
+        BigDecimal totalSaving = BigDecimal.ZERO;
+
+        for (Transaction transaction : transactions) {
+            if (transaction.getType().equalsIgnoreCase("Expense")) {
+                totalExpense = totalExpense.add(transaction.getAmount());
+            } else if (transaction.getType().equalsIgnoreCase("Income") || transaction.getType().equalsIgnoreCase("Saving")) {
+                totalSaving = totalSaving.add(transaction.getAmount());
+            }
+        }
+
         PdfDocument pdfDocument = new PdfDocument();
         Paint paint = new Paint();
         Paint linePaint = new Paint();
         linePaint.setStrokeWidth(2);
 
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(600, 800, 1).create();
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(600, 1000, 1).create();
         PdfDocument.Page page = pdfDocument.startPage(pageInfo);
         Canvas canvas = page.getCanvas();
 
@@ -155,37 +158,52 @@ public class DownloadReportActivity extends AppCompatActivity {
         int rowHeight = 40;
         int colWidth = 120;
 
+        // Title
         paint.setTextSize(18);
         paint.setFakeBoldText(true);
         canvas.drawText("Transaction Report - " + selectedMonth + "/" + selectedYear, 150, 50, paint);
 
+        // Display Total Saving & Expense
         paint.setTextSize(14);
-        int y = yStart;
+        canvas.drawText("Total Saving: ₹" + totalSaving, xStart, yStart, paint);
+        canvas.drawText("Total Expense: ₹" + totalExpense, xStart, yStart + rowHeight, paint);
 
+        // Move cursor for transaction table
+        int y = yStart + (rowHeight * 2);
+
+        // Table Headers
+        paint.setTextSize(14);
+        paint.setFakeBoldText(true);
         canvas.drawText("Date", xStart, y, paint);
         canvas.drawText("Type", xStart + colWidth, y, paint);
         canvas.drawText("Amount", xStart + 2 * colWidth, y, paint);
         canvas.drawText("Note", xStart + 3 * colWidth, y, paint);
 
+        // Draw line below headers
         y += rowHeight;
-        canvas.drawLine(xStart, y, xStart + 4 * colWidth, y, linePaint);
+        canvas.drawLine(xStart, y, xStart + (4 * colWidth), y, linePaint);
 
+        // Table Data
         paint.setTextSize(12);
+        paint.setFakeBoldText(false);
+
         for (Transaction transaction : transactions) {
             y += rowHeight;
-            if (y > 750) break;
+            if (y > 950) break; // Prevent overflow (adjust page size if needed)
 
             canvas.drawText(transaction.getDate(), xStart, y, paint);
             canvas.drawText(transaction.getType(), xStart + colWidth, y, paint);
             canvas.drawText("₹" + transaction.getAmount(), xStart + 2 * colWidth, y, paint);
             canvas.drawText(transaction.getNote(), xStart + 3 * colWidth, y, paint);
 
-            canvas.drawLine(xStart, y + 10, xStart + 4 * colWidth, y + 10, linePaint);
+            canvas.drawLine(xStart, y + 10, xStart + (4 * colWidth), y + 10, linePaint);
         }
 
         pdfDocument.finishPage(page);
         savePDF(pdfDocument);
     }
+
+
 
     private void savePDF(PdfDocument pdfDocument) {
         String fileName = "Report_" + selectedMonth + "_" + selectedYear + ".pdf";

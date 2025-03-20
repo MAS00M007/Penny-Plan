@@ -198,28 +198,47 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     // Get Transactions for a Specific Month & Year
+//
     public List<Transaction> getTransactionsForMonth(int month, int year) {
         List<Transaction> transactions = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
 
+        // Fetch all transactions for the selected month
         String query = "SELECT * FROM transactions WHERE strftime('%m', date) = ? AND strftime('%Y', date) = ? ORDER BY date DESC";
         Cursor cursor = db.rawQuery(query, new String[]{String.format("%02d", month), String.valueOf(year)});
+
+        BigDecimal totalExpense = BigDecimal.ZERO;
+        BigDecimal totalSaving = BigDecimal.ZERO; // Fix: Ensure savings are summed correctly
 
         if (cursor.moveToFirst()) {
             do {
                 Transaction transaction = new Transaction(
                         cursor.getInt(cursor.getColumnIndexOrThrow("id")),
-                    new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow("amount"))),
+                        new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow("amount"))),
                         cursor.getString(cursor.getColumnIndexOrThrow("type")),
                         cursor.getString(cursor.getColumnIndexOrThrow("note")),
                         cursor.getString(cursor.getColumnIndexOrThrow("date"))
                 );
+
                 transactions.add(transaction);
+
+                // Sum total savings and expenses correctly
+                if (transaction.getType().equalsIgnoreCase("Expense")) {
+                    totalExpense = totalExpense.add(transaction.getAmount());
+                } else if (transaction.getType().equalsIgnoreCase("Income") || transaction.getType().equalsIgnoreCase("Saving")) {
+                    totalSaving = totalSaving.add(transaction.getAmount());
+                }
+
             } while (cursor.moveToNext());
         }
 
         cursor.close();
         db.close();
+
+        // Debug: Check values in logs
+        System.out.println("Total Expense: " + totalExpense);
+        System.out.println("Total Saving: " + totalSaving);
+
         return transactions;
     }
 
