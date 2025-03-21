@@ -8,22 +8,25 @@ public class Transaction {
     private String type; // "Income" or "Expense"
     private String note;
     private String date;
+    private String time; // Added time field
 
     // Constructor with ID
-    public Transaction(int id, BigDecimal amount, String type, String note, String date) {
+    public Transaction(int id, BigDecimal amount, String type, String note, String date, String time) {
         this.id = id;
         this.amount = amount;
         this.type = type;
         this.note = note;
         this.date = date;
+        this.time = time;
     }
 
     // Constructor without ID (for new transactions before inserting into DB)
-    public Transaction(BigDecimal amount, String type, String note, String date) {
+    public Transaction(BigDecimal amount, String type, String note, String date, String time) {
         this.amount = amount;
         this.type = type;
         this.note = note;
         this.date = date;
+        this.time = time;
     }
 
     // Getters and Setters
@@ -36,7 +39,7 @@ public class Transaction {
     }
 
     public BigDecimal getAmount() {
-        return amount;
+        return amount != null ? amount : BigDecimal.ZERO; // Prevent null issues
     }
 
     public void setAmount(BigDecimal amount) {
@@ -48,7 +51,7 @@ public class Transaction {
     }
 
     public void setType(String type) {
-        if (type.equalsIgnoreCase("income") || type.equalsIgnoreCase("expense")) {
+        if (type.equalsIgnoreCase("Income") || type.equalsIgnoreCase("Expense")) {
             this.type = type;
         } else {
             throw new IllegalArgumentException("Invalid transaction type. Use 'Income' or 'Expense'.");
@@ -71,6 +74,14 @@ public class Transaction {
         this.date = date;
     }
 
+    public String getTime() {
+        return time;
+    }
+
+    public void setTime(String time) {
+        this.time = time;
+    }
+
     // ToString Method for Debugging
     @Override
     public String toString() {
@@ -80,6 +91,7 @@ public class Transaction {
                 ", type='" + type + '\'' +
                 ", note='" + note + '\'' +
                 ", date='" + date + '\'' +
+                ", time='" + time + '\'' +
                 '}';
     }
 }

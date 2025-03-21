@@ -27,9 +27,9 @@ import java.util.List;
 public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int VIEW_TYPE_TRANSACTION = 0;
     private static final int VIEW_TYPE_AD = 1;
-    private List<Object> items;  // Holds both transactions & ads
-    private Context context;
-    private DatabaseHelper dbHelper;
+    private final List<Object> items;  // Holds both transactions & ads
+    private final Context context;
+    private final DatabaseHelper dbHelper;
 
     public TransactionAdapter(Context context, List<Object> items, DatabaseHelper dbHelper) {
         this.context = context;
@@ -60,18 +60,19 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             TransactionViewHolder transactionHolder = (TransactionViewHolder) holder;
             Transaction transaction = (Transaction) items.get(position);
 
-            BigDecimal amount = new BigDecimal(String.valueOf(transaction.getAmount()));
+            BigDecimal amount = transaction.getAmount();
             String formattedAmount = new DecimalFormat("#,##0.00").format(amount);
 
             transactionHolder.amountTextView.setText("" + formattedAmount);
             transactionHolder.typeTextView.setText(transaction.getType());
             transactionHolder.noteTextView.setText(transaction.getNote());
             transactionHolder.dateTextView.setText(transaction.getDate());
+            transactionHolder.timeTextView.setText(transaction.getTime()); // Display time
 
             // Color based on transaction type
-            if (transaction.getType().equalsIgnoreCase("Saving")) {
+            if ("Saving".equalsIgnoreCase(transaction.getType())) {
                 transactionHolder.amountTextView.setTextColor(context.getResources().getColor(R.color.accent_color));
-            } else if (transaction.getType().equalsIgnoreCase("Expense")) {
+            } else if ("Expense".equalsIgnoreCase(transaction.getType())) {
                 transactionHolder.amountTextView.setTextColor(context.getResources().getColor(R.color.expense_color));
             } else {
                 transactionHolder.amountTextView.setTextColor(Color.BLACK);
@@ -96,7 +97,7 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
     }
 
     public static class TransactionViewHolder extends RecyclerView.ViewHolder {
-        TextView amountTextView, typeTextView, noteTextView, dateTextView;
+        TextView amountTextView, typeTextView, noteTextView, dateTextView, timeTextView;
 
         public TransactionViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -104,6 +105,7 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             typeTextView = itemView.findViewById(R.id.tvType);
             noteTextView = itemView.findViewById(R.id.tvNote);
             dateTextView = itemView.findViewById(R.id.tvDate);
+            timeTextView = itemView.findViewById(R.id.tvTime); // Added time display
         }
     }
 
@@ -191,15 +193,12 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
                 .show();
     }
 
-
     // Load Native Ad
     private void populateNativeAdView(NativeAd nativeAd, NativeAdView adView) {
-        // Headline
         TextView headlineView = adView.findViewById(R.id.ad_headline);
         headlineView.setText(nativeAd.getHeadline());
         adView.setHeadlineView(headlineView);
 
-        // Body text (Check if available)
         TextView bodyView = adView.findViewById(R.id.ad_body);
         if (nativeAd.getBody() != null) {
             bodyView.setText(nativeAd.getBody());
@@ -208,7 +207,6 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             bodyView.setVisibility(View.GONE);
         }
 
-        // Call-to-action button (Check if available)
         Button ctaButton = adView.findViewById(R.id.ad_call_to_action);
         if (nativeAd.getCallToAction() != null) {
             ctaButton.setText(nativeAd.getCallToAction());
@@ -217,48 +215,6 @@ public class TransactionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             ctaButton.setVisibility(View.GONE);
         }
 
-        // Ad Attribution Label (Required by Google)
-        TextView attributionView = adView.findViewById(R.id.ad_attribution);
-        if (attributionView != null) {
-            attributionView.setText("Ad"); // Google requires "Ad" or "Sponsored"
-            attributionView.setVisibility(View.VISIBLE);
-        }
-
-        // Ad Media (Image/Video)
-        MediaView mediaView = adView.findViewById(R.id.ad_media);
-        if (mediaView != null) {
-            adView.setMediaView(mediaView);
-        }
-
-        // Ad Icon (Check if available)
-        ImageView iconView = adView.findViewById(R.id.adsappicon);
-        if (nativeAd.getIcon() != null) {
-            iconView.setImageDrawable(nativeAd.getIcon().getDrawable());
-            adView.setIconView(iconView);
-        } else {
-            iconView.setVisibility(View.GONE);
-        }
-
-        // Advertiser Name (Check if available)
-        TextView advertiserView = adView.findViewById(R.id.ad_advertiser);
-        if (nativeAd.getAdvertiser() != null) {
-            advertiserView.setText(nativeAd.getAdvertiser());
-            adView.setAdvertiserView(advertiserView);
-        } else {
-            advertiserView.setVisibility(View.GONE);
-        }
-
-        // Star Rating (Check if available)
-        RatingBar ratingBar = adView.findViewById(R.id.ad_stars);
-        if (nativeAd.getStarRating() != null) {
-            ratingBar.setRating(nativeAd.getStarRating().floatValue());
-            adView.setStarRatingView(ratingBar);
-        } else {
-            ratingBar.setVisibility(View.GONE);
-        }
-
-        // Assign NativeAd to the view
         adView.setNativeAd(nativeAd);
     }
-
 }

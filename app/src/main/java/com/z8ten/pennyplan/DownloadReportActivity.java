@@ -3,6 +3,8 @@ package com.z8ten.pennyplan;
 import android.app.DatePickerDialog;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
@@ -13,23 +15,31 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 
 import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd;
 import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 public class DownloadReportActivity extends AppCompatActivity {
     private TextView tvSelectedMonth;
@@ -37,12 +47,22 @@ public class DownloadReportActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private int selectedYear = 0, selectedMonth = 0;
     private RewardedInterstitialAd rewardedInterstitialAd;
+    private boolean isAdLoading = false;
+
+    private static final String TAG = "DownloadReportActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         setContentView(R.layout.activity_download_report);
+
+        // Request storage permission ONLY for Android 9 and below
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+            }
+        }
 
         tvSelectedMonth = findViewById(R.id.tvSelectedMonth);
         btnSelectMonth = findViewById(R.id.btnSelectMonth);
@@ -51,6 +71,7 @@ public class DownloadReportActivity extends AppCompatActivity {
 
         MobileAds.initialize(this, initializationStatus -> {});
         loadRewardedInterstitialAd();
+        updateGeneratePDFButton();
 
         btnSelectMonth.setOnClickListener(v -> showMonthPickerDialog());
 
@@ -63,7 +84,7 @@ public class DownloadReportActivity extends AppCompatActivity {
             if (rewardedInterstitialAd != null) {
                 rewardedInterstitialAd.show(DownloadReportActivity.this, rewardItem -> {
                     generatePDF();
-                    loadRewardedInterstitialAd();
+                    loadRewardedInterstitialAd(); // Reload after use
                 });
             } else {
                 Toast.makeText(this, "Ad not ready, generating PDF anyway", Toast.LENGTH_SHORT).show();
@@ -74,39 +95,56 @@ public class DownloadReportActivity extends AppCompatActivity {
     }
 
     private void loadRewardedInterstitialAd() {
+        if (isAdLoading) return; // Prevent multiple loads
+
+        isAdLoading = true;
+        updateGeneratePDFButton();
+
+        AdRequest adRequest = new AdRequest.Builder().build();
+        RewardedInterstitialAd.load(this, "ca-app-pub-3940256099942544/5354046379", // Use real Ad Unit ID in production
+                adRequest, new RewardedInterstitialAdLoadCallback() {
+                    @Override
+                    public void onAdLoaded(@NonNull RewardedInterstitialAd ad) {
+                        rewardedInterstitialAd = ad;
+                        isAdLoading = false;
+                        updateGeneratePDFButton();
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                        Log.e("AdLoad", "Failed to load rewarded interstitial ad: " + loadAdError.getMessage());
+                        rewardedInterstitialAd = null;
+                        isAdLoading = false;
+                        updateGeneratePDFButton();
+                    }
+                });
+    }
+
+    private void updateGeneratePDFButton() {
         if (!isOnline()) {
             btnGeneratePDF.setEnabled(true);
+            btnGeneratePDF.setText("Generate PDF");
             return;
         }
 
-        try {
-            AdRequest adRequest = new AdRequest.Builder().build();
-            RewardedInterstitialAd.load(this, "ca-app-pub-3940256099942544/5354046379", adRequest,
-                    new RewardedInterstitialAdLoadCallback() {
-                        @Override
-                        public void onAdLoaded(@NonNull RewardedInterstitialAd ad) {
-                            rewardedInterstitialAd = ad;
-                            btnGeneratePDF.setEnabled(true);
-                        }
-
-                        @Override
-                        public void onAdFailedToLoad(@NonNull com.google.android.gms.ads.LoadAdError loadAdError) {
-                            rewardedInterstitialAd = null;
-                            btnGeneratePDF.setEnabled(true);
-                        }
-                    });
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (isAdLoading) {
+            btnGeneratePDF.setEnabled(false);
+            btnGeneratePDF.setText("Loading Ad…");
+        } else if (rewardedInterstitialAd != null) {
+            btnGeneratePDF.setEnabled(true);
+            btnGeneratePDF.setText("Generate PDF (with Ad)");
+        } else {
+            btnGeneratePDF.setEnabled(true);
+            btnGeneratePDF.setText("Generate PDF");
         }
     }
 
     private boolean isOnline() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (cm != null) {
-            NetworkInfo networkInfo = cm.getActiveNetworkInfo();
-            return networkInfo != null && networkInfo.isConnected();
-        }
-        return false;
+        if (cm == null) return false;
+
+        NetworkInfo networkInfo = cm.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
     }
 
     private void showMonthPickerDialog() {
@@ -114,93 +152,98 @@ public class DownloadReportActivity extends AppCompatActivity {
         int year = calendar.get(Calendar.YEAR);
         int month = calendar.get(Calendar.MONTH);
 
-        DatePickerDialog datePickerDialog = new DatePickerDialog(this, (view, yearSelected, monthOfYear, dayOfMonth) -> {
-            selectedYear = yearSelected;
-            selectedMonth = monthOfYear + 1;
-            tvSelectedMonth.setText("Selected Month: " + selectedMonth + "/" + selectedYear);
-        }, year, month, 1);
+        DatePickerDialog datePickerDialog = new DatePickerDialog(this,
+                (view, yearSelected, monthOfYear, dayOfMonth) -> {
+                    selectedYear = yearSelected;
+                    selectedMonth = monthOfYear + 1;
+                    tvSelectedMonth.setText("Selected Month: " + selectedMonth + "/" + selectedYear);
+                }, year, month, 1);
+
         datePickerDialog.show();
     }
+
     private void generatePDF() {
-        if (selectedYear <= 0 || selectedMonth <= 0) {
-            Toast.makeText(this, "Please select a month first", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
         List<Transaction> transactions = dbHelper.getTransactionsForMonth(selectedMonth, selectedYear);
+
         if (transactions.isEmpty()) {
-            Toast.makeText(this, "No transactions found for the selected month", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No transactions found for this month", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        BigDecimal totalExpense = BigDecimal.ZERO;
-        BigDecimal totalSaving = BigDecimal.ZERO;
-
-        for (Transaction transaction : transactions) {
-            if (transaction.getType().equalsIgnoreCase("Expense")) {
-                totalExpense = totalExpense.add(transaction.getAmount());
-            } else if (transaction.getType().equalsIgnoreCase("Income") || transaction.getType().equalsIgnoreCase("Saving")) {
-                totalSaving = totalSaving.add(transaction.getAmount());
-            }
-        }
+        // Create summary object to get total savings and expenses
+        TransactionSummary summary = new TransactionSummary(transactions);
+        BigDecimal totalSavings = summary.getTotalSavings();
+        BigDecimal totalExpenses = summary.getTotalExpenses();
 
         PdfDocument pdfDocument = new PdfDocument();
         Paint paint = new Paint();
-        Paint linePaint = new Paint();
-        linePaint.setStrokeWidth(2);
 
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(600, 1000, 1).create();
+        int pageWidth = 600;
+        int pageHeight = 1000;
+        int yPosition = 100;
+        int rowHeight = 40;
+
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create();
         PdfDocument.Page page = pdfDocument.startPage(pageInfo);
         Canvas canvas = page.getCanvas();
 
-        int xStart = 50;
-        int yStart = 100;
-        int rowHeight = 40;
-        int colWidth = 120;
+        // DEBUG: Log summary
+        Log.d("DEBUG_SUMMARY", summary.toString());
 
-        // Title
-        paint.setTextSize(18);
-        paint.setFakeBoldText(true);
-        canvas.drawText("Transaction Report - " + selectedMonth + "/" + selectedYear, 150, 50, paint);
+        try {
+            // Title
+            paint.setTextSize(18);
+            paint.setFakeBoldText(true);
+            canvas.drawText("Transaction Report - " + selectedMonth + "/" + selectedYear, 120, yPosition, paint);
+            yPosition += 50;
 
-        // Display Total Saving & Expense
-        paint.setTextSize(14);
-        canvas.drawText("Total Saving: ₹" + totalSaving, xStart, yStart, paint);
-        canvas.drawText("Total Expense: ₹" + totalExpense, xStart, yStart + rowHeight, paint);
+            // Column Headers
+            paint.setTextSize(14);
+            paint.setFakeBoldText(true);
+            canvas.drawText("Date", 50, yPosition, paint);
+            canvas.drawText("Category", 200, yPosition, paint);
+            canvas.drawText("Amount", 400, yPosition, paint);
+            yPosition += rowHeight;
+            canvas.drawLine(50, yPosition, 550, yPosition, paint);
+            yPosition += rowHeight;
+            paint.setFakeBoldText(false);
 
-        // Move cursor for transaction table
-        int y = yStart + (rowHeight * 2);
+            // Transactions
+            for (Transaction transaction : transactions) {
+                canvas.drawText(transaction.getDate(), 50, yPosition, paint);
+                canvas.drawText(transaction.getType(), 200, yPosition, paint);
+                canvas.drawText("₹" + transaction.getAmount(), 400, yPosition, paint);
+                yPosition += rowHeight;
 
-        // Table Headers
-        paint.setTextSize(14);
-        paint.setFakeBoldText(true);
-        canvas.drawText("Date", xStart, y, paint);
-        canvas.drawText("Type", xStart + colWidth, y, paint);
-        canvas.drawText("Amount", xStart + 2 * colWidth, y, paint);
-        canvas.drawText("Note", xStart + 3 * colWidth, y, paint);
+                if (yPosition > pageHeight - 150) {
+                    pdfDocument.finishPage(page);
+                    pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create();
+                    page = pdfDocument.startPage(pageInfo);
+                    canvas = page.getCanvas();
+                    yPosition = 100;
+                }
+            }
 
-        // Draw line below headers
-        y += rowHeight;
-        canvas.drawLine(xStart, y, xStart + (4 * colWidth), y, linePaint);
+            // Draw a line before totals
+            canvas.drawLine(50, yPosition, 550, yPosition, paint);
+            yPosition += rowHeight;
 
-        // Table Data
-        paint.setTextSize(12);
-        paint.setFakeBoldText(false);
+            // Totals
+            paint.setFakeBoldText(true);
+            canvas.drawText("Total Savings:", 50, yPosition, paint);
+            canvas.drawText("₹" + totalSavings, 400, yPosition, paint);
+            yPosition += rowHeight;
 
-        for (Transaction transaction : transactions) {
-            y += rowHeight;
-            if (y > 950) break; // Prevent overflow (adjust page size if needed)
+            canvas.drawText("Total Expenses:", 50, yPosition, paint);
+            canvas.drawText("₹" + totalExpenses, 400, yPosition, paint);
 
-            canvas.drawText(transaction.getDate(), xStart, y, paint);
-            canvas.drawText(transaction.getType(), xStart + colWidth, y, paint);
-            canvas.drawText("₹" + transaction.getAmount(), xStart + 2 * colWidth, y, paint);
-            canvas.drawText(transaction.getNote(), xStart + 3 * colWidth, y, paint);
+            pdfDocument.finishPage(page);
+            savePDF(pdfDocument);
 
-            canvas.drawLine(xStart, y + 10, xStart + (4 * colWidth), y + 10, linePaint);
+        } catch (Exception e) {
+            Log.e("PDF_ERROR", "Error generating PDF: " + e.getMessage());
         }
-
-        pdfDocument.finishPage(page);
-        savePDF(pdfDocument);
     }
 
 
@@ -209,30 +252,57 @@ public class DownloadReportActivity extends AppCompatActivity {
         String fileName = "Report_" + selectedMonth + "_" + selectedYear + ".pdf";
         OutputStream outputStream = null;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-            values.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
-            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {  // Android 10+
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                values.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + "/PennyPlan");
 
-            Uri uri = getContentResolver().insert(MediaStore.Files.getContentUri("external"), values);
-            if (uri != null) {
-                try {
-                    outputStream = getContentResolver().openOutputStream(uri);
-                } catch (IOException e) {
-                    e.printStackTrace();
+                Uri uri = getContentResolver().insert(MediaStore.Files.getContentUri("external"), values);
+                if (uri == null) {
+                    Log.e(TAG, "Failed to create URI for saving PDF.");
+                    Toast.makeText(this, "Error saving PDF!", Toast.LENGTH_LONG).show();
                     return;
                 }
-            }
-        }
 
-        try {
-            pdfDocument.writeTo(outputStream);
-            pdfDocument.close();
-            outputStream.close();
-            Toast.makeText(this, "PDF saved successfully to Documents", Toast.LENGTH_LONG).show();
+                outputStream = getContentResolver().openOutputStream(uri);
+                Log.d(TAG, "PDF saved to: " + uri.toString());
+
+            } else {  // Android 9 and below
+                File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "PennyPlan");
+
+                if (!directory.exists()) {
+                    boolean dirCreated = directory.mkdirs();
+                    Log.d(TAG, "Directory created: " + dirCreated);
+                    if (!dirCreated) {
+                        Log.e(TAG, "Failed to create directory: " + directory.getAbsolutePath());
+                        Toast.makeText(this, "Error creating directory!", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                }
+
+                File file = new File(directory, fileName);
+                outputStream = new FileOutputStream(file);
+                Log.d(TAG, "PDF saved to: " + file.getAbsolutePath());
+
+                // Ensure file is visible in the File Manager
+                sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(file)));
+            }
+
+            if (outputStream != null) {
+                pdfDocument.writeTo(outputStream);
+                pdfDocument.close();
+                outputStream.flush();
+                outputStream.close();
+                Toast.makeText(this, "PDF saved successfully!", Toast.LENGTH_LONG).show();
+            } else {
+                Log.e(TAG, "Output stream is null, PDF not saved.");
+            }
+
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Error saving PDF: " + e.getMessage(), e);
+            Toast.makeText(this, "Failed to save PDF: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 }

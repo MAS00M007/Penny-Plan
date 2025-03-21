@@ -24,8 +24,11 @@ import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -38,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvBalance;
     private ImageView downloadActivity;
     private final Executor executor = Executors.newSingleThreadExecutor();
+    private static final String TAG = "MainActivity";
+    private static final String AD_UNIT_ID = "ca-app-pub-3940256099942544/2247696110"; // Test Ad Unit ID
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -45,28 +50,27 @@ public class MainActivity extends AppCompatActivity {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         setContentView(R.layout.activity_main);
 
-        // Initialize Database
         dbHelper = new DatabaseHelper(this);
-
-        // Initialize Views
         recyclerView = findViewById(R.id.rvTransactions);
         btnAddSaving = findViewById(R.id.btnAddSaving);
         btnAddExpense = findViewById(R.id.btnAddExpense);
         tvBalance = findViewById(R.id.tvBalance);
         downloadActivity = findViewById(R.id.downloadActivityButton);
 
-        // Setup RecyclerView
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new TransactionAdapter(this, items, dbHelper);
         recyclerView.setAdapter(adapter);
 
-        // Initialize Mobile Ads
+        //
+        dbHelper.debugDatabase();
+
+
         MobileAds.initialize(this, initializationStatus -> {
-            // Load data after ads initialization
+            Log.d(TAG, "Ads initialized");
             loadDataInBackground();
+            loadNativeAd();
         });
 
-        // Setup Click Listeners
         downloadActivity.setOnClickListener(view ->
                 startActivity(new Intent(MainActivity.this, DownloadReportActivity.class))
         );
@@ -78,50 +82,44 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh data when returning to the activity
         loadDataInBackground();
     }
 
-    // Load transactions from DB in background thread
     private void loadDataInBackground() {
         executor.execute(() -> {
-            final List<Transaction> transactions = dbHelper.getAllTransactions();
-            final double balance = dbHelper.getBalance();
+            List<Transaction> transactions = dbHelper.getAllTransactions();
+            double balance = dbHelper.getBalance();
 
             runOnUiThread(() -> {
                 tvBalance.setText("Balance: " + String.format("%,.2f", balance));
-
                 items.clear();
                 items.addAll(transactions);
-
                 if (items.isEmpty()) {
                     Toast.makeText(this, "No transactions available", Toast.LENGTH_SHORT).show();
                 }
-
                 adapter.notifyDataSetChanged();
+                loadNativeAd();
             });
         });
     }
 
-
     private void loadNativeAd() {
-        AdLoader adLoader = new AdLoader.Builder(this, "ca-app-pub-3940256099942544/2247696110")
+        AdLoader adLoader = new AdLoader.Builder(this, AD_UNIT_ID)
                 .forNativeAd(nativeAd -> {
-                    // Remove any existing ads first
                     for (int i = items.size() - 1; i >= 0; i--) {
                         if (!(items.get(i) instanceof Transaction)) {
                             items.remove(i);
                         }
                     }
-
-                    // Add the new ad
                     items.add(nativeAd);
                     adapter.notifyDataSetChanged();
+                    Log.d(TAG, "Native ad loaded successfully");
                 })
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(LoadAdError adError) {
-                        Log.e("AdLoadError", "Failed to load native ad: " + adError.getMessage());
+                        Log.e(TAG, "Ad failed to load: " + adError.getMessage());
+                        Toast.makeText(MainActivity.this, "Ad failed: " + adError.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 })
                 .build();
@@ -129,17 +127,10 @@ public class MainActivity extends AppCompatActivity {
         adLoader.loadAd(new AdRequest.Builder().build());
     }
 
-    // Show Dialog Box for Adding Transaction
     private void showTransactionDialog(String type) {
         Dialog dialog = new Dialog(this);
+        dialog.setContentView(type.equals("Expense") ? R.layout.dialog_add_expense : R.layout.dialog_add_saving);
 
-        if (type.equals("Expense")) {
-            dialog.setContentView(R.layout.dialog_add_expense);
-        } else {
-            dialog.setContentView(R.layout.dialog_add_saving);
-        }
-
-        // Set dialog width to match_parent
         if (dialog.getWindow() != null) {
             dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
@@ -157,20 +148,16 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(amountStr));
-            String date = java.text.DateFormat.getDateInstance().format(new java.util.Date());
+            BigDecimal amount = new BigDecimal(amountStr);
+            String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+            String time = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
 
-            // Save transaction in background
             executor.execute(() -> {
-                // Save to database
-                final long result = dbHelper.insertTransaction(new Transaction(0, amount, type, note, date));
+                long result = dbHelper.insertTransaction(new Transaction(0, amount, type, note, date, time));
 
-                // Update UI on main thread
                 runOnUiThread(() -> {
-                    // Show Toast message
                     if (result != -1) {
                         Toast.makeText(MainActivity.this, type + " added successfully!", Toast.LENGTH_SHORT).show();
-                        // Refresh data
                         loadDataInBackground();
                     } else {
                         Toast.makeText(MainActivity.this, "Failed to add " + type, Toast.LENGTH_SHORT).show();
@@ -187,17 +174,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Clean up resources
         if (dbHelper != null) {
             dbHelper.close();
         }
     }
+
     public void updateBalance() {
         double balance = dbHelper.getBalance();
-        TextView tvBalance = findViewById(R.id.tvBalance);
-
-        runOnUiThread(() -> tvBalance.setText("Balance:" + String.format("%,.2f", balance)));
+        runOnUiThread(() -> tvBalance.setText("Balance: " + String.format("%,.2f", balance)));
     }
-
-
 }

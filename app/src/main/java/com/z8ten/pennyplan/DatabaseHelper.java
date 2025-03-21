@@ -12,12 +12,14 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "PennyPlan.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     // Table and Columns
     private static final String TABLE_TRANSACTIONS = "transactions";
@@ -26,6 +28,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_TYPE = "type";
     private static final String COLUMN_NOTE = "note";
     private static final String COLUMN_DATE = "date";
+    private static final String COLUMN_TIME = "time"; // New column for time
 
     // SQL Query to Create Table
     private static final String CREATE_TABLE_TRANSACTIONS =
@@ -34,7 +37,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     COLUMN_AMOUNT + " TEXT, " +
                     COLUMN_TYPE + " TEXT, " +
                     COLUMN_NOTE + " TEXT, " +
-                    COLUMN_DATE + " TEXT)";
+                    COLUMN_DATE + " TEXT, " +
+                    COLUMN_TIME + " TEXT)"; // Added time column
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -47,11 +51,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < 2) { // If upgrading from version 1 to 2
-            db.execSQL("ALTER TABLE " + TABLE_TRANSACTIONS + " ADD COLUMN " + COLUMN_NOTE + " TEXT DEFAULT ''");
+        if (oldVersion < 3) { // Upgrading from version 2 to 3
+            db.execSQL("ALTER TABLE " + TABLE_TRANSACTIONS + " ADD COLUMN " + COLUMN_TIME + " TEXT DEFAULT ''");
         }
     }
-
 
     // Insert a Transaction
     public long insertTransaction(Transaction transaction) {
@@ -63,21 +66,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             values.put(COLUMN_AMOUNT, transaction.getAmount().toPlainString());
             values.put(COLUMN_TYPE, transaction.getType());
             values.put(COLUMN_NOTE, transaction.getNote());
-
-            // Convert date to "YYYY-MM-DD" format before inserting
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            String formattedDate = sdf.format(new Date());
-            values.put(COLUMN_DATE, formattedDate);
+            values.put(COLUMN_DATE, transaction.getDate());
+            values.put(COLUMN_TIME, transaction.getTime());
 
             id = db.insert(TABLE_TRANSACTIONS, null, values);
-
-            if (id == -1) {
-//                Log.e("DB_ERROR", "Failed to insert transaction: " + values.toString());
-            } else {
-//                Log.d("DB_SUCCESS", "Transaction added: " + values.toString());
-            }
         } catch (Exception e) {
-//            Log.e("DB_ERROR", "Exception while inserting transaction", e);
+            e.printStackTrace();
         } finally {
             db.close();
         }
@@ -92,21 +86,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Cursor cursor = null;
 
         try {
-            cursor = db.rawQuery("SELECT * FROM " + TABLE_TRANSACTIONS + " ORDER BY id DESC ", null);
+            cursor = db.rawQuery("SELECT * FROM " + TABLE_TRANSACTIONS + " ORDER BY id DESC", null);
             if (cursor.moveToFirst()) {
                 do {
                     Transaction transaction = new Transaction(
                             cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)),
-                           new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_AMOUNT))),
+                            new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_AMOUNT))),
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)),
                             cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE)),
-                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE))
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIME))
                     );
                     transactions.add(transaction);
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
-//            Log.e("DB_ERROR", "Error fetching transactions", e);
+            e.printStackTrace();
         } finally {
             if (cursor != null) cursor.close();
             db.close();
@@ -126,10 +121,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             values.put(COLUMN_TYPE, transaction.getType());
             values.put(COLUMN_NOTE, transaction.getNote());
             values.put(COLUMN_DATE, transaction.getDate());
+            values.put(COLUMN_TIME, transaction.getTime());
 
             rowsAffected = db.update(TABLE_TRANSACTIONS, values, COLUMN_ID + "=?", new String[]{String.valueOf(transaction.getId())});
         } catch (Exception e) {
-//            Log.e("DB_ERROR", "Error updating transaction", e);
+            e.printStackTrace();
         } finally {
             db.close();
         }
@@ -142,104 +138,104 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
 
         try {
-            int rowsDeleted = db.delete(TABLE_TRANSACTIONS, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
-            if (rowsDeleted == 0) {
-//                Log.e("DB_ERROR", "No transaction deleted with ID: " + id);
-            } else {
-//                Log.d("DB_SUCCESS", "Transaction deleted with ID: " + id);
-            }
+            db.delete(TABLE_TRANSACTIONS, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
         } catch (Exception e) {
-//            Log.e("DB_ERROR", "Error deleting transaction", e);
+            e.printStackTrace();
         } finally {
             db.close();
         }
     }
 
-//    public double getBalance() {
-//        SQLiteDatabase db = this.getReadableDatabase();
-//        double totalSavings = 0, totalExpenses = 0;
-//
-//        Cursor cursor = db.rawQuery("SELECT SUM(amount) FROM transactions WHERE type='Saving'", null);
-//        if (cursor.moveToFirst()) {
-//            totalSavings = cursor.getDouble(0);
-//        }
-//        cursor.close();
-//
-//        cursor = db.rawQuery("SELECT SUM(amount) FROM transactions WHERE type='Expense'", null);
-//        if (cursor.moveToFirst()) {
-//            totalExpenses = cursor.getDouble(0);
-//        }
-//        cursor.close();
-//        db.close();
-//
-//        return totalSavings - totalExpenses; // Balance = Savings - Expenses
-//    }
-
-
     public double getBalance() {
+        double balance = 0.0;
         SQLiteDatabase db = this.getReadableDatabase();
-        double totalSavings = 0, totalExpenses = 0;
-
-        // Fetch total savings
-        Cursor cursorSavings = db.rawQuery("SELECT IFNULL(SUM(amount), 0) FROM transactions WHERE type='Saving'", null);
-        if (cursorSavings.moveToFirst()) {
-            totalSavings = cursorSavings.getDouble(0);
+        Cursor cursor = db.rawQuery("SELECT SUM(amount) FROM transactions", null);
+        if (cursor.moveToFirst()) {
+            balance = cursor.getDouble(0);
         }
-        cursorSavings.close(); // Close the cursor after use
-
-        // Fetch total expenses
-        Cursor cursorExpenses = db.rawQuery("SELECT IFNULL(SUM(amount), 0) FROM transactions WHERE type='Expense'", null);
-        if (cursorExpenses.moveToFirst()) {
-            totalExpenses = cursorExpenses.getDouble(0);
-        }
-        cursorExpenses.close(); // Close the cursor after use
-
-        return totalSavings - totalExpenses; // Balance = Savings - Expenses
+        cursor.close();
+        return balance;
     }
 
-    // Get Transactions for a Specific Month & Year
-//
+    public List<Transaction> getTransactionsForAllMonths() {
+        List<Transaction> transactions = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        // Order transactions by date (YYYY-MM-DD) and time (HH:MM:SS)
+        String query = "SELECT * FROM transactions ORDER BY date DESC, time DESC";
+
+        Cursor cursor = db.rawQuery(query, null);
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                try {
+                    int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                    String date = cursor.getString(cursor.getColumnIndexOrThrow("date"));
+                    String time = cursor.getString(cursor.getColumnIndexOrThrow("time"));  // Get time column
+                    String type = cursor.getString(cursor.getColumnIndexOrThrow("type"));
+                    BigDecimal amount = new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow("amount")));
+                    String note = cursor.getString(cursor.getColumnIndexOrThrow("note"));
+
+                    transactions.add(new Transaction(id,amount,type,note,date,time));
+                    Log.d("DB_FETCH", "Transaction: " + date + " " + time + " | " + type + " | ₹" + amount);
+                } catch (Exception e) {
+                    Log.e("DB_ERROR", "Error fetching transactions: " + e.getMessage());
+                }
+            }
+            cursor.close();
+        } else {
+            Log.e("DB_ERROR", "Cursor is null. No transactions found.");
+        }
+        db.close();
+        return transactions;
+    }
+
     public List<Transaction> getTransactionsForMonth(int month, int year) {
         List<Transaction> transactions = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
 
-        // Fetch all transactions for the selected month
-        String query = "SELECT * FROM transactions WHERE strftime('%m', date) = ? AND strftime('%Y', date) = ? ORDER BY date DESC";
-        Cursor cursor = db.rawQuery(query, new String[]{String.format("%02d", month), String.valueOf(year)});
+        String query = "SELECT * FROM " + TABLE_TRANSACTIONS +
+                " WHERE strftime('%m', date) = ? AND strftime('%Y', date) = ?" +
+                " ORDER BY date DESC, time DESC";
 
-        BigDecimal totalExpense = BigDecimal.ZERO;
-        BigDecimal totalSaving = BigDecimal.ZERO; // Fix: Ensure savings are summed correctly
+        Cursor cursor = db.rawQuery(query, new String[]{
+                String.format(Locale.US, "%02d", month), String.valueOf(year)});
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                try {
+                    int id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID));
+                    String date = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE));
+                    String time = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIME));
+                    String type = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE));
+                    BigDecimal amount = new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_AMOUNT)));
+                    String note = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE));
+
+                    transactions.add(new Transaction(id, amount, type, note, date, time));
+                } catch (Exception e) {
+                    Log.e("DB_ERROR", "Error fetching transactions: " + e.getMessage());
+                }
+            }
+            cursor.close();
+        }
+        db.close();
+        return transactions;
+    }
+
+    public void debugDatabase() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT type, amount FROM transactions", null);
 
         if (cursor.moveToFirst()) {
             do {
-                Transaction transaction = new Transaction(
-                        cursor.getInt(cursor.getColumnIndexOrThrow("id")),
-                        new BigDecimal(cursor.getString(cursor.getColumnIndexOrThrow("amount"))),
-                        cursor.getString(cursor.getColumnIndexOrThrow("type")),
-                        cursor.getString(cursor.getColumnIndexOrThrow("note")),
-                        cursor.getString(cursor.getColumnIndexOrThrow("date"))
-                );
-
-                transactions.add(transaction);
-
-                // Sum total savings and expenses correctly
-                if (transaction.getType().equalsIgnoreCase("Expense")) {
-                    totalExpense = totalExpense.add(transaction.getAmount());
-                } else if (transaction.getType().equalsIgnoreCase("Income") || transaction.getType().equalsIgnoreCase("Saving")) {
-                    totalSaving = totalSaving.add(transaction.getAmount());
-                }
-
+                String type = cursor.getString(0);
+                String amount = cursor.getString(1);
+                Log.d("DB_CHECK", "Stored Type: " + type + ", Amount: " + amount);
             } while (cursor.moveToNext());
         }
 
         cursor.close();
-        db.close();
-
-        // Debug: Check values in logs
-        System.out.println("Total Expense: " + totalExpense);
-        System.out.println("Total Saving: " + totalSaving);
-
-        return transactions;
     }
 
 }
+
