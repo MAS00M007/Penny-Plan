@@ -45,7 +45,7 @@ public class DownloadReportActivity extends AppCompatActivity {
     private TextView tvSelectedMonth;
     private Button btnSelectMonth, btnGeneratePDF;
     private DatabaseHelper dbHelper;
-    private int selectedYear = 0, selectedMonth = 0;
+    private int selectedYear = 0, selectedMonth = 0, selectedDay=0;
     private RewardedInterstitialAd rewardedInterstitialAd;
     private boolean isAdLoading = false;
 
@@ -156,6 +156,7 @@ public class DownloadReportActivity extends AppCompatActivity {
                 (view, yearSelected, monthOfYear, dayOfMonth) -> {
                     selectedYear = yearSelected;
                     selectedMonth = monthOfYear + 1;
+                    selectedDay = dayOfMonth;
                     tvSelectedMonth.setText("Selected Month: " + selectedMonth + "/" + selectedYear);
                 }, year, month, 1);
 
@@ -189,7 +190,7 @@ public class DownloadReportActivity extends AppCompatActivity {
         Canvas canvas = page.getCanvas();
 
         // DEBUG: Log summary
-        Log.d("DEBUG_SUMMARY", summary.toString());
+//        Log.d("DEBUG_SUMMARY", summary.toString());
 
         try {
             // Title
@@ -242,14 +243,14 @@ public class DownloadReportActivity extends AppCompatActivity {
             savePDF(pdfDocument);
 
         } catch (Exception e) {
-            Log.e("PDF_ERROR", "Error generating PDF: " + e.getMessage());
+//            Log.e("PDF_ERROR", "Error generating PDF: " + e.getMessage());
         }
     }
 
 
 
     private void savePDF(PdfDocument pdfDocument) {
-        String fileName = "Report_" + selectedMonth + "_" + selectedYear + ".pdf";
+        String fileName = "Report_"+ selectedDay + "_" + selectedMonth + "_" + selectedYear + ".pdf";
         OutputStream outputStream = null;
 
         try {
@@ -261,22 +262,22 @@ public class DownloadReportActivity extends AppCompatActivity {
 
                 Uri uri = getContentResolver().insert(MediaStore.Files.getContentUri("external"), values);
                 if (uri == null) {
-                    Log.e(TAG, "Failed to create URI for saving PDF.");
+//                    Log.e(TAG, "Failed to create URI for saving PDF.");
                     Toast.makeText(this, "Error saving PDF!", Toast.LENGTH_LONG).show();
                     return;
                 }
 
                 outputStream = getContentResolver().openOutputStream(uri);
-                Log.d(TAG, "PDF saved to: " + uri.toString());
+//                Log.d(TAG, "PDF saved to: " + uri.toString());
 
             } else {  // Android 9 and below
                 File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "PennyPlan");
 
                 if (!directory.exists()) {
                     boolean dirCreated = directory.mkdirs();
-                    Log.d(TAG, "Directory created: " + dirCreated);
+//                    Log.d(TAG, "Directory created: " + dirCreated);
                     if (!dirCreated) {
-                        Log.e(TAG, "Failed to create directory: " + directory.getAbsolutePath());
+//                        Log.e(TAG, "Failed to create directory: " + directory.getAbsolutePath());
                         Toast.makeText(this, "Error creating directory!", Toast.LENGTH_LONG).show();
                         return;
                     }
@@ -284,7 +285,7 @@ public class DownloadReportActivity extends AppCompatActivity {
 
                 File file = new File(directory, fileName);
                 outputStream = new FileOutputStream(file);
-                Log.d(TAG, "PDF saved to: " + file.getAbsolutePath());
+//                Log.d(TAG, "PDF saved to: " + file.getAbsolutePath());
 
                 // Ensure file is visible in the File Manager
                 sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(file)));
@@ -295,13 +296,13 @@ public class DownloadReportActivity extends AppCompatActivity {
                 pdfDocument.close();
                 outputStream.flush();
                 outputStream.close();
-                Toast.makeText(this, "PDF saved successfully!", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "PDF saved successfully!"+fileName, Toast.LENGTH_LONG).show();
             } else {
-                Log.e(TAG, "Output stream is null, PDF not saved.");
+//                Log.e(TAG, "Output stream is null, PDF not saved.");
             }
 
         } catch (IOException e) {
-            Log.e(TAG, "Error saving PDF: " + e.getMessage(), e);
+//            Log.e(TAG, "Error saving PDF: " + e.getMessage(), e);
             Toast.makeText(this, "Failed to save PDF: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }

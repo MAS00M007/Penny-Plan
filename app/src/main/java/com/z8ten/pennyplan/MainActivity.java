@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
 
         //
-        dbHelper.debugDatabase();
+//        dbHelper.debugDatabase();
 
 
         MobileAds.initialize(this, initializationStatus -> {
@@ -113,13 +113,13 @@ public class MainActivity extends AppCompatActivity {
                     }
                     items.add(nativeAd);
                     adapter.notifyDataSetChanged();
-                    Log.d(TAG, "Native ad loaded successfully");
+//                    Log.d(TAG, "Native ad loaded successfully");
                 })
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(LoadAdError adError) {
-                        Log.e(TAG, "Ad failed to load: " + adError.getMessage());
-                        Toast.makeText(MainActivity.this, "Ad failed: " + adError.getMessage(), Toast.LENGTH_SHORT).show();
+//                        Log.e(TAG, "Ad failed to load: " + adError.getMessage());
+//                        Toast.makeText(MainActivity.this, "Ad failed: " + adError.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 })
                 .build();

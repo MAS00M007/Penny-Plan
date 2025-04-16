@@ -35,7 +35,7 @@ public class TransactionSummary {
         }
 
         // Log final totals
-        Log.d("DEBUG_SUMMARY", "Total Savings: " + totalSavings + ", Total Expenses: " + totalExpenses);
+//        Log.d("DEBUG_SUMMARY", "Total Savings: " + totalSavings + ", Total Expenses: " + totalExpenses);
     }
 
 

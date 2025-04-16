@@ -177,14 +177,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     String note = cursor.getString(cursor.getColumnIndexOrThrow("note"));
 
                     transactions.add(new Transaction(id,amount,type,note,date,time));
-                    Log.d("DB_FETCH", "Transaction: " + date + " " + time + " | " + type + " | ₹" + amount);
+//                    Log.d("DB_FETCH", "Transaction: " + date + " " + time + " | " + type + " | ₹" + amount);
                 } catch (Exception e) {
-                    Log.e("DB_ERROR", "Error fetching transactions: " + e.getMessage());
+//                    Log.e("DB_ERROR", "Error fetching transactions: " + e.getMessage());
                 }
             }
             cursor.close();
         } else {
-            Log.e("DB_ERROR", "Cursor is null. No transactions found.");
+//            Log.e("DB_ERROR", "Cursor is null. No transactions found.");
         }
         db.close();
         return transactions;
@@ -213,7 +213,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
                     transactions.add(new Transaction(id, amount, type, note, date, time));
                 } catch (Exception e) {
-                    Log.e("DB_ERROR", "Error fetching transactions: " + e.getMessage());
+//                    Log.e("DB_ERROR", "Error fetching transactions: " + e.getMessage());
                 }
             }
             cursor.close();
@@ -222,20 +222,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return transactions;
     }
 
-    public void debugDatabase() {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT type, amount FROM transactions", null);
-
-        if (cursor.moveToFirst()) {
-            do {
-                String type = cursor.getString(0);
-                String amount = cursor.getString(1);
-                Log.d("DB_CHECK", "Stored Type: " + type + ", Amount: " + amount);
-            } while (cursor.moveToNext());
-        }
-
-        cursor.close();
-    }
+//    public void debugDatabase() {
+//        SQLiteDatabase db = this.getReadableDatabase();
+//        Cursor cursor = db.rawQuery("SELECT type, amount FROM transactions", null);
+//
+//        if (cursor.moveToFirst()) {
+//            do {
+//                String type = cursor.getString(0);
+//                String amount = cursor.getString(1);
+//                Log.d("DB_CHECK", "Stored Type: " + type + ", Amount: " + amount);
+//            } while (cursor.moveToNext());
+//        }
+//
+//        cursor.close();
+//    }
 
 }
 
