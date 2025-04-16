@@ -194,37 +194,45 @@ public class DownloadReportActivity extends AppCompatActivity {
 
         try {
             // Title
+            // Title
             paint.setTextSize(18);
             paint.setFakeBoldText(true);
             canvas.drawText("Transaction Report - " + selectedMonth + "/" + selectedYear, 120, yPosition, paint);
             yPosition += 50;
 
-            // Column Headers
+// Column Headers
             paint.setTextSize(14);
             paint.setFakeBoldText(true);
             canvas.drawText("Date", 50, yPosition, paint);
-            canvas.drawText("Category", 200, yPosition, paint);
-            canvas.drawText("Amount", 400, yPosition, paint);
+            canvas.drawText("Category", 150, yPosition, paint);
+            canvas.drawText("Note", 300, yPosition, paint);
+            canvas.drawText("Amount", 500, yPosition, paint); // Amount moved to last
             yPosition += rowHeight;
             canvas.drawLine(50, yPosition, 550, yPosition, paint);
             yPosition += rowHeight;
             paint.setFakeBoldText(false);
 
-            // Transactions
+// Transactions
             for (Transaction transaction : transactions) {
                 canvas.drawText(transaction.getDate(), 50, yPosition, paint);
-                canvas.drawText(transaction.getType(), 200, yPosition, paint);
-                canvas.drawText("₹" + transaction.getAmount(), 400, yPosition, paint);
+                canvas.drawText(transaction.getType(), 150, yPosition, paint);
+                canvas.drawText(transaction.getNote(), 300, yPosition, paint);
+                canvas.drawText("₹" + transaction.getAmount(), 500, yPosition, paint); // Amount at the end
                 yPosition += rowHeight;
 
-                if (yPosition > pageHeight - 150) {
+                // Page break check
+                if (yPosition > pageHeight - 100) {
                     pdfDocument.finishPage(page);
-                    pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create();
+                    int pageNumber=1;
+                    pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, ++pageNumber).create();
                     page = pdfDocument.startPage(pageInfo);
                     canvas = page.getCanvas();
                     yPosition = 100;
                 }
             }
+
+
+
 
             // Draw a line before totals
             canvas.drawLine(50, yPosition, 550, yPosition, paint);
@@ -233,11 +241,11 @@ public class DownloadReportActivity extends AppCompatActivity {
             // Totals
             paint.setFakeBoldText(true);
             canvas.drawText("Total Savings:", 50, yPosition, paint);
-            canvas.drawText("₹" + totalSavings, 400, yPosition, paint);
+            canvas.drawText("₹" + totalSavings, 500, yPosition, paint);
             yPosition += rowHeight;
 
             canvas.drawText("Total Expenses:", 50, yPosition, paint);
-            canvas.drawText("₹" + totalExpenses, 400, yPosition, paint);
+            canvas.drawText("₹" + totalExpenses, 500, yPosition, paint);
 
             pdfDocument.finishPage(page);
             savePDF(pdfDocument);
@@ -296,7 +304,7 @@ public class DownloadReportActivity extends AppCompatActivity {
                 pdfDocument.close();
                 outputStream.flush();
                 outputStream.close();
-                Toast.makeText(this, "PDF saved successfully!"+fileName, Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "PDF saved successfully!" + fileName, Toast.LENGTH_LONG).show();
             } else {
 //                Log.e(TAG, "Output stream is null, PDF not saved.");
             }

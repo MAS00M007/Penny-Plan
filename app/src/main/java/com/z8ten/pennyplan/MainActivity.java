@@ -95,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
                 items.clear();
                 items.addAll(transactions);
                 if (items.isEmpty()) {
-                    Toast.makeText(this, "No transactions available", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Start adding your Transaction", Toast.LENGTH_SHORT).show();
                 }
                 adapter.notifyDataSetChanged();
                 loadNativeAd();
